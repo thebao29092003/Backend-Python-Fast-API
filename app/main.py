@@ -5,7 +5,7 @@ from app.core.model_loader import speech_model
 from app.api.v1.router import api_router
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(_application: FastAPI):
     # [STARTUP]: Nạp mô hình vào bộ nhớ ngay khi ứng dụng khởi chạy
     speech_model.load_model()
 
@@ -16,6 +16,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title=settings.PROJECT_NAME,
     lifespan=lifespan,
+    # khi chạy production ẩn đi
     docs_url="/docs",
 )
 
@@ -25,4 +26,4 @@ app.include_router(api_router, prefix=settings.API_V1_STR)
 if __name__ == "__main__":
     import uvicorn
     # Nên dùng chuỗi định dạng "app.main:app" để uvicorn có thể chạy tính năng reload khi dev
-    uvicorn.run("app.main:app", host="127.0.0.1", port=8000, reload=True)
+    uvicorn.run(app, host="127.0.0.1", port=8000)

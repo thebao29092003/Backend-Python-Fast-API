@@ -11,3 +11,4 @@ python-dotenv
 requests
 with-tempfile
 pydantic-settings
+eng_to_ipa
