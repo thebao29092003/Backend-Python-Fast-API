@@ -3,11 +3,11 @@ import tempfile
 import requests
 import librosa
 import torch
-from app.schemas.convertAudioPhonetic import ConvertAudioPhonetic
+from app.schemas.convert_audio_phonetic_schema import ConvertAudioPhoneticRequest
 from app.core.model_loader import speech_model
 from app.core.config import settings
 
-def process_wav2vec2_task(request: ConvertAudioPhonetic):
+def process_wav2vec2_task(request: ConvertAudioPhoneticRequest):
     path = request.audio_path
     temp_file_path = None
 
@@ -62,7 +62,7 @@ def process_wav2vec2_task(request: ConvertAudioPhonetic):
             "phonemes": phonemes
         }
 
-        print(f"[{request.recording_id}] Đang gửi webhook kết quả về .NET...")
+        print(f"[{callback_payload}] Đang gửi webhook kết quả về .NET...")
         requests.post(request.callback_url, json=callback_payload, headers=headers, verify=False)
 
     except Exception as e:

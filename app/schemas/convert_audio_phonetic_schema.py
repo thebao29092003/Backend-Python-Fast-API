@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 
-class ConvertAudioPhonetic(BaseModel):
+class ConvertAudioPhoneticRequest(BaseModel):
     audio_path: str
     recording_id: str
     callback_url: str
