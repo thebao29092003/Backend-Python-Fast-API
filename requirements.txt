@@ -1,0 +1,13 @@
+torch
+pydantic
+torchaudio
+fastapi
+uvicorn
+python-multipart
+librosa
+pydantic
+transformers
+python-dotenv
+requests
+with-tempfile
+pydantic-settings
