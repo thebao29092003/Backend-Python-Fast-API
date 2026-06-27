@@ -86,21 +86,12 @@ def calculate_ipa_scores(request: TextToIPARequest) -> TextToIPAResponse:
     }
 
     # Lớp 1: So khớp cấp độ Từ (Word-level Alignment)
-    word_matcher = difflib.SequenceMatcher(None, target_words_ipa, uttered_tokens)
+    word_matcher = difflib.SequenceMatcher(None, target_words_ipa, uttered_tokens, autojunk=False)
 
     for tag, i1, i2, j1, j2 in word_matcher.get_opcodes():
         if tag == 'equal':
-            # Trường hợp khớp 1-to-1 giữa từ chuẩn và từ thực tế phát âm
-            for idx_t, idx_u in zip(range(i1, i2), range(j1, j2)):
-                target_word_ipa = target_words_ipa[idx_t]
-                uttered_word_ipa = uttered_tokens[idx_u]
-
-                # Lớp 2: So khớp cấp độ Âm vị (Phoneme-level) cục bộ bên trong từ này
-                char_matcher = difflib.SequenceMatcher(None, target_word_ipa, uttered_word_ipa)
-                correct = sum(
-                    ci2 - ci1 for char_tag, ci1, ci2, cj1, cj2 in char_matcher.get_opcodes() if char_tag == 'equal')
-
-                word_scores_map[idx_t]["correct_phones"] = correct
+            for idx_t in range(i1, i2):
+                word_scores_map[idx_t]["correct_phones"] = word_scores_map[idx_t]["total_phones"]
 
         elif tag == 'replace':
             # Trường hợp gộp âm nhiều từ (Ví dụ: "in Persian" gộp thành một âm "ɪnɚʃʌn" hoặc phát âm sai)
@@ -108,7 +99,7 @@ def calculate_ipa_scores(request: TextToIPARequest) -> TextToIPAResponse:
             uttered_block_ipa = "".join(uttered_tokens[j1:j2])
 
             # So khớp cục bộ cho cả khối từ bị gộp
-            char_matcher = difflib.SequenceMatcher(None, target_block_ipa, uttered_block_ipa)
+            char_matcher = difflib.SequenceMatcher(None, target_block_ipa, uttered_block_ipa,autojunk=False)
             correct = sum(
                 ci2 - ci1 for char_tag, ci1, ci2, cj1, cj2 in char_matcher.get_opcodes() if char_tag == 'equal')
 
@@ -140,7 +131,7 @@ def calculate_ipa_scores(request: TextToIPARequest) -> TextToIPAResponse:
 
         # Nếu từ gốc có tổng số âm vị bằng 0 (ví dụ ký tự đặc biệt), mặc định đạt
         accuracy = correct_phones / total_phones if total_phones > 0 else 1.0
-        status = "Đúng" if accuracy >= 0.70 else "Sai"
+        status = "Correct" if accuracy >= 0.75 else ("Partially Correct" if accuracy >= 0.45 else "Incorrect")
 
         total_all_correct += correct_phones
         total_all_phones += total_phones
