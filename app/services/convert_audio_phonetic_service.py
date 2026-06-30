@@ -59,6 +59,7 @@ def process_wav2vec2_task(request: ConvertAudioPhoneticRequest):
 
         callback_payload = {
             "recordingId": request.recording_id,
+            "transcriptId": request.transcript_id,
             "phonemes": phonemes
         }
 

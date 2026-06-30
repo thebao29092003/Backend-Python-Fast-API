@@ -7,7 +7,7 @@ from app.api.v1.router import api_router
 @asynccontextmanager
 async def lifespan(_application: FastAPI):
     # [STARTUP]: Nạp mô hình vào bộ nhớ ngay khi ứng dụng khởi chạy
-    # speech_model.load_model()
+    speech_model.load_model()
     nltk_model.load_model()
 
     yield

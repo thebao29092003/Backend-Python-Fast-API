@@ -48,7 +48,7 @@ def calculate_ipa_scores(request: TextToIPARequest) -> TextToIPAResponse:
     # --- BƯỚC 1: Xây dựng chuỗi IPA chuẩn cho từng từ từ văn bản gốc ---
     target_words_ipa = []
     for word in words_list:
-        clean_word = word.strip(",.?!")
+        clean_word = word.strip(",.?!;:\"")
         arpabet_list = g2p_model(clean_word)
 
         word_ipa_list = []
