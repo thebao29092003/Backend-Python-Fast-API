@@ -13,6 +13,8 @@ class WordScore(BaseModel):
     total_phones: int
     accuracy: float
     status: str
+    original_pronunciation: str
+    standard_pronunciation: str
 
 # Dữ liệu phản hồi trả về cho Client
 class TextToIPAResponse(BaseModel):

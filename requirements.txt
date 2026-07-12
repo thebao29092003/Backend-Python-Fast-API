@@ -12,3 +12,4 @@ requests
 with-tempfile
 pydantic-settings
 eng_to_ipa
+g2p_en
