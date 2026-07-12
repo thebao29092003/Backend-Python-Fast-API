@@ -47,6 +47,7 @@ def calculate_ipa_scores(request: TextToIPARequest) -> TextToIPAResponse:
 
     # --- BƯỚC 1: Xây dựng chuỗi IPA chuẩn cho từng từ từ văn bản gốc ---
     target_words_ipa = []
+    target_words_ipa_display = []
     for word in words_list:
         clean_word = word.strip(",.?!;:\"")
         arpabet_list = g2p_model(clean_word)
@@ -65,18 +66,22 @@ def calculate_ipa_scores(request: TextToIPARequest) -> TextToIPAResponse:
                 word_ipa_list.append(ipa_char)
 
         word_ipa_str = "".join(word_ipa_list)
-        # Tiến hành chuẩn hóa ký tự cho từ chuẩn
-        word_ipa_str = normalize_ipa(word_ipa_str)
-        target_words_ipa.append(word_ipa_str)
+        # Lưu lại phát âm chuẩn dạng gốc để hiển thị
+        target_words_ipa_display.append(word_ipa_str)
+        # Tiến hành chuẩn hóa ký tự cho từ chuẩn để so khớp
+        word_ipa_str_normalized = normalize_ipa(word_ipa_str)
+        target_words_ipa.append(word_ipa_str_normalized)
 
     # --- BƯỚC 2: Chuẩn hóa chuỗi âm vị thực tế thu được ---
     # Tách chuỗi âm vị thực tế thành các "từ thực tế" dựa trên khoảng trắng
     raw_uttered_tokens = request.phonemes_list.split()
     uttered_tokens = []
+    matched_raw_uttered_tokens = []
     for tok in raw_uttered_tokens:
         cleaned_tok = normalize_ipa(tok.lower())
         if cleaned_tok:
             uttered_tokens.append(cleaned_tok)
+            matched_raw_uttered_tokens.append(tok)
 
     # --- BƯỚC 3: Tiến hành so khớp 2 lớp để tránh lệch pha ---
     # Khởi tạo từ điển lưu trữ điểm của từng từ
@@ -84,6 +89,9 @@ def calculate_ipa_scores(request: TextToIPARequest) -> TextToIPAResponse:
         i: {"word": words_list[i], "total_phones": len(target_words_ipa[i]), "correct_phones": 0}
         for i in range(len(words_list))
     }
+
+    # Khởi tạo từ điển lưu trữ phát âm thực tế (phát âm gốc) được khớp của từng từ
+    word_original_pronunciations = {i: "" for i in range(len(words_list))}
 
     # Lớp 1: So khớp cấp độ Từ (Word-level Alignment)
     word_matcher = difflib.SequenceMatcher(None, target_words_ipa, uttered_tokens, autojunk=False)
@@ -93,13 +101,17 @@ def calculate_ipa_scores(request: TextToIPARequest) -> TextToIPAResponse:
             for idx_t in range(i1, i2):
                 word_scores_map[idx_t]["correct_phones"] = word_scores_map[idx_t]["total_phones"]
 
+                # Khớp 1-1 chính xác
+                idx_u = j1 + (idx_t - i1)
+                word_original_pronunciations[idx_t] = matched_raw_uttered_tokens[idx_u]
+
         elif tag == 'replace':
             # Trường hợp gộp âm nhiều từ (Ví dụ: "in Persian" gộp thành một âm "ɪnɚʃʌn" hoặc phát âm sai)
             target_block_ipa = "".join(target_words_ipa[i1:i2])
             uttered_block_ipa = "".join(uttered_tokens[j1:j2])
 
             # So khớp cục bộ cho cả khối từ bị gộp
-            char_matcher = difflib.SequenceMatcher(None, target_block_ipa, uttered_block_ipa,autojunk=False)
+            char_matcher = difflib.SequenceMatcher(None, target_block_ipa, uttered_block_ipa, autojunk=False)
             correct = sum(
                 ci2 - ci1 for char_tag, ci1, ci2, cj1, cj2 in char_matcher.get_opcodes() if char_tag == 'equal')
 
@@ -111,10 +123,24 @@ def calculate_ipa_scores(request: TextToIPARequest) -> TextToIPAResponse:
                 w_len = word_scores_map[idx_t]["total_phones"]
                 word_scores_map[idx_t]["correct_phones"] = int(round(w_len * match_ratio))
 
+            # Gán phát âm thực tế cho từng từ trong khối replace
+            n = i2 - i1
+            m = j2 - j1
+            if n == m:
+                # Nếu số lượng từ đích và từ thực tế bằng nhau, gán 1-1 tương ứng
+                for k in range(n):
+                    word_original_pronunciations[i1 + k] = matched_raw_uttered_tokens[j1 + k]
+            else:
+                # Nếu nuốt âm, gộp âm (n != m), gán chung cụm từ phát âm thực tế cho tất cả các từ trong khối chuẩn
+                merged_uttered = " ".join(matched_raw_uttered_tokens[j1:j2]) if m > 0 else ""
+                for k in range(n):
+                    word_original_pronunciations[i1 + k] = merged_uttered
+
         elif tag == 'delete':
-            # Người học bỏ sót hoàn toàn từ này, mặc định nhận 0 điểm đúng
+            # Người học bỏ sót hoàn toàn từ này, mặc định nhận 0 điểm đúng và phát âm gốc là rỗng
             for idx_t in range(i1, i2):
                 word_scores_map[idx_t]["correct_phones"] = 0
+                word_original_pronunciations[idx_t] = ""
 
         elif tag == 'insert':
             # Người nói phát ra âm thừa không có trong văn bản chuẩn, bỏ qua để tránh gây lệch pha
@@ -142,7 +168,9 @@ def calculate_ipa_scores(request: TextToIPARequest) -> TextToIPAResponse:
                 correct_phones=correct_phones,
                 total_phones=total_phones,
                 accuracy=round(accuracy, 2),
-                status=status
+                status=status,
+                original_pronunciation=word_original_pronunciations[w_idx],
+                standard_pronunciation=target_words_ipa_display[w_idx]
             )
         )
 
