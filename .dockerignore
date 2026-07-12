@@ -1,0 +1,44 @@
+# Git & CI/CD
+.git
+.gitignore
+.github/
+
+# Môi trường cấu hình cục bộ (Tránh rò rỉ secret key)
+.env
+.env.*
+
+# Tài liệu
+README.md
+
+# Thư mục môi trường ảo Python
+venv/
+.venv/
+env/
+ENV/
+*.venv
+
+# Cache của Python và các thư viện linting/testing
+**/__pycache__/
+**/*.py[cod]
+**/*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# File tạm thời của Hệ điều hành và IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.log
+
+# Dữ liệu âm thanh tạm thời và thư mục xử lý file
+*.wav
+*.mp3
+*.ogg
+temp_audio/
+
+# [QUAN TRỌNG - PHƯƠNG ÁN 2] Bỏ qua mô hình nặng để mount ngoài lúc chạy container
+app/models/
+models/
+wav2vec2/
