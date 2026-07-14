@@ -157,7 +157,7 @@ def calculate_ipa_scores(request: TextToIPARequest) -> TextToIPAResponse:
 
         # Nếu từ gốc có tổng số âm vị bằng 0 (ví dụ ký tự đặc biệt), mặc định đạt
         accuracy = correct_phones / total_phones if total_phones > 0 else 1.0
-        status = "Correct" if accuracy >= 0.75 else ("Partially Correct" if accuracy >= 0.45 else "Incorrect")
+        status = "Correct" if accuracy >= 0.8 else ("Partially Correct" if accuracy >= 0.5 else "Incorrect")
 
         total_all_correct += correct_phones
         total_all_phones += total_phones
