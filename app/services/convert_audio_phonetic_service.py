@@ -64,7 +64,7 @@ def process_wav2vec2_task(request: ConvertAudioPhoneticRequest):
         }
 
         print(f"[{callback_payload}] Đang gửi webhook kết quả về .NET...")
-        requests.post(request.callback_url, json=callback_payload, headers=headers, verify=False)
+        requests.post(request.callback_url, json=callback_payload, headers=headers, verify=False, timeout=30)
 
     except Exception as e:
         print(f"[{request.recording_id}] Lỗi trong quá trình xử lý ngầm: {str(e)}")
