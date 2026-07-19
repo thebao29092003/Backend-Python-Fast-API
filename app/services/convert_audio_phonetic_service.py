@@ -79,6 +79,7 @@ def process_wav2vec2_task(request: ConvertAudioPhoneticRequest):
         ext = os.path.splitext(url_without_params)[1]
 
         # 2. Tạo file tạm thời lưu trữ file tải về
+        # nó sẽ tự sinh ra tên tạm cho file
         with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as temp_file:
             for chunk in response.iter_content(chunk_size=8192):
                 if chunk:
