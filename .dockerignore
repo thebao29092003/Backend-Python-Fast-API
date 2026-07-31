@@ -38,7 +38,12 @@ Thumbs.db
 *.ogg
 temp_audio/
 
-# [QUAN TRỌNG - PHƯƠNG ÁN 2] Bỏ qua mô hình nặng để mount ngoài lúc chạy container
-app/models/
+# ==========================================
+# KHÔNG BUILD MÔ HÌNH HỌC MÁY NẶNG VÀO IMAGE
+# (Lưu trữ ở Volume bên ngoài và mount vào container)
+# ==========================================
 models/
+app/models/
 wav2vec2/
+**/models/*
+!**/models/.gitkeep

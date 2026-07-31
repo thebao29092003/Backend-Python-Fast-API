@@ -24,6 +24,10 @@ app = FastAPI(
 # Đăng ký các API Router
 app.include_router(api_router, prefix=settings.API_V1_STR)
 
+@app.get("/health", status_code=200)
+async def health_check():
+    return {"status": "healthy"}
+
 if __name__ == "__main__":
     import uvicorn
     # Nên dùng chuỗi định dạng "app.main:app" để uvicorn có thể chạy tính năng reload khi dev
