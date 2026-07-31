@@ -26,7 +26,7 @@ RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir torch torchaudio --index-url https://download.pytorch.org/whl/cpu
 
 # Cài đặt các gói phụ thuộc còn lại từ requirements.txt
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cpu
 
 # Tải trước các tài nguyên NLTK cần thiết (cmudict, averaged_perceptron_tagger) để container chạy offline hoàn toàn
 RUN python -m nltk.downloader -d /usr/share/nltk_data cmudict averaged_perceptron_tagger

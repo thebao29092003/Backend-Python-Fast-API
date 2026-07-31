@@ -42,8 +42,7 @@ temp_audio/
 # KHÔNG BUILD MÔ HÌNH HỌC MÁY NẶNG VÀO IMAGE
 # (Lưu trữ ở Volume bên ngoài và mount vào container)
 # ==========================================
-models/
-app/models/
-wav2vec2/
-**/models/*
-!**/models/.gitkeep
+models
+app/models
+wav2vec2
+**/models
