@@ -21,12 +21,9 @@ ENV PATH="/opt/venv/bin:$PATH"
 # Sao chép file requirements.txt
 COPY requirements.txt .
 
-# Nâng cấp pip và cài đặt PyTorch + Torchaudio phiên bản CPU-only trước để tối ưu dung lượng image
+# Nâng cấp pip và cài đặt các gói phụ thuộc từ requirements.txt
 RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir torch torchaudio --index-url https://download.pytorch.org/whl/cpu
-
-# Cài đặt các gói phụ thuộc còn lại từ requirements.txt
-RUN pip install --no-cache-dir -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cpu
+    pip install --no-cache-dir -r requirements.txt
 
 # Tải trước các tài nguyên NLTK cần thiết (cmudict, averaged_perceptron_tagger) để container chạy offline hoàn toàn
 RUN python -m nltk.downloader -d /usr/share/nltk_data cmudict averaged_perceptron_tagger
@@ -40,23 +37,13 @@ FROM python:3.13-slim AS runner
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PATH="/opt/venv/bin:$PATH" \
-    NLTK_DATA="/usr/share/nltk_data" \
-    MODEL_WAV2_VEC2="models/wav2vec2"
+    NLTK_DATA="/usr/share/nltk_data"
 
 WORKDIR /app
-
-# Cài đặt các thư viện hệ thống cần thiết cho xử lý âm thanh (soundfile/librosa/ffmpeg)
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libsndfile1 \
-    ffmpeg \
-    && rm -rf /var/lib/apt/lists/*
 
 # Sao chép môi trường ảo và dữ liệu NLTK từ Stage Builder
 COPY --from=builder /opt/venv /opt/venv
 COPY --from=builder /usr/share/nltk_data /usr/share/nltk_data
-
-# Tạo thư mục lưu trữ models (sẽ được mount Volume/Bind Mount từ Host vào đây)
-RUN mkdir -p /app/models
 
 # Sao chép mã nguồn của dự án (loại trừ các tệp/thư mục trong .dockerignore)
 COPY . .
