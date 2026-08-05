@@ -26,7 +26,7 @@ RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
 # Tải trước các tài nguyên NLTK cần thiết (cmudict, averaged_perceptron_tagger) để container chạy offline hoàn toàn
-RUN python -m nltk.downloader -d /usr/share/nltk_data cmudict averaged_perceptron_tagger
+RUN python -m nltk.downloader -d /usr/share/nltk_data cmudict averaged_perceptron_tagger averaged_perceptron_tagger_eng
 
 # ==========================================
 # STAGE 2: Lightweight Production Runtime
