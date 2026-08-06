@@ -1,0 +1,83 @@
+name: Deploy Python FastAPI Backend (GHCR & Manual Compose)
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  # JOB 1: BIÊN DỊCH VÀ ĐẨY IMAGE LÊN GITHUB CONTAINER REGISTRY (GHCR)
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write # Cấp quyền cho GITHUB_TOKEN để đẩy package lên GHCR
+    steps:
+      - name: Checkout mã nguồn
+        uses: actions/checkout@v7
+
+      # Tự động định dạng tên Image thành chữ thường để tránh lỗi chuẩn đặt tên của Docker
+      - name: Tạo tên Image dạng chữ thường
+        id: prep
+        run: |
+          IMAGE_PATH="ghcr.io/${{ github.repository_owner }}/python-product"
+          echo "GHCR_IMAGE=$(echo $IMAGE_PATH | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
+
+      - name: Thiết lập Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      # Đăng nhập vào GHCR sử dụng token mặc định do GitHub Actions tự cấp
+      - name: Đăng nhập vào GitHub Container Registry (GHCR)
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Build và Push Python Backend Image lên GHCR
+      - name: Build và Push Python Backend Image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ env.GHCR_IMAGE }}:product
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # JOB 2: RA LỆNH CHO VPS KÉO IMAGE TỪ GHCR VỀ
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      # SSH trực tiếp vào VPS của bạn để thực thi các lệnh cập nhật
+      - name: SSH vào VPS và khởi chạy lại Container
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT }}
+          script: |
+            # 1. Di chuyển vào thư mục chứa docker-compose.yml bạn tự quản lý trên VPS
+            cd /home/deployer/engsteps-product
+
+            # 2. Đăng nhập vào GHCR trên VPS bằng Token cá nhân (PAT) bạn cấu hình trong Secrets
+            echo "${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}" | docker login ghcr.io -u ${{ secrets.GH_USERNAME }} --password-stdin
+
+            # 3. Tạo biến chứa tên image dạng chữ thường
+            IMAGE_PATH="ghcr.io/${{ secrets.GH_USERNAME }}/python-product"
+            GHCR_IMAGE=$(echo $IMAGE_PATH | tr '[:upper:]' '[:lower:]')
+
+            # 4. Kéo Image mới nhất từ GHCR về VPS
+            docker pull $GHCR_IMAGE:product
+
+            # 5. Khởi động lại dịch vụ python-backend (Docker Compose tự ánh xạ sang Image mới kéo về)
+            docker compose up -d --no-deps python-backend
+
+            # In ra danh sách trạng thái của container để kiểm tra trực tiếp trên GitHub Actions Log
+            echo "=== TRẠNG THÁI CONTAINER SAU KHI DEPLOY ==="
+            docker compose ps
+
+            # 6. Dọn dẹp các Image cũ không sử dụng để giải phóng bộ nhớ VPS
+            docker image prune -f
