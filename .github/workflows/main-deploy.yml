@@ -45,9 +45,29 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  # JOB 2: RA LỆNH CHO VPS KÉO IMAGE TỪ GHCR VỀ
+  # JOB 2: DEPLOY LÊN MODAL CLOUD (MÔI TRƯỜNG PRODUCTION)
+  deploy-modal:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout mã nguồn
+        uses: actions/checkout@v7
+
+      - name: Thiết lập Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Cài đặt và Deploy lên Modal Cloud
+        run: |
+          pip install modal
+          modal deploy app/services/wav2vec2_gpu_modal.py --env production
+        env:
+          MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
+          MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
+
+  # JOB 3: RA LỆNH CHO VPS KÉO IMAGE TỪ GHCR VỀ
   deploy:
-    needs: build-and-push
+    needs: [build-and-push, deploy-modal]
     runs-on: ubuntu-latest
     steps:
       # SSH trực tiếp vào VPS của bạn để thực thi các lệnh cập nhật
