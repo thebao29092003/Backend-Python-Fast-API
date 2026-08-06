@@ -1,57 +1,31 @@
-import os
-import tempfile
 import requests
-import librosa
-import torch
+import modal
 from app.schemas.convert_audio_phonetic_schema import ConvertAudioPhoneticRequest
-from app.core.model_loader import speech_model
 from app.core.config import settings
 
 def process_wav2vec2_task(request: ConvertAudioPhoneticRequest):
     path = request.audio_path
-    temp_file_path = None
 
     try:
-        # 1. Tải file âm thanh từ URL dưới dạng stream
-        response = requests.get(path, stream=True)
-        if response.status_code != 200:
-            raise Exception("Không thể tải file âm thanh từ URL này!")
+        # 1. Gọi Modal GPU từ xa để thực hiện xử lý nặng (Tải file, chuẩn hóa và suy luận Wav2Vec2)
+        print(f"[{request.recording_id}] Đang gọi Modal GPU từ xa để xử lý âm thanh...")
+        env_name = settings.MODAL_ENVIRONMENT
 
-        ext = os.path.splitext(path)[1]
+        # Phương thức này tìm kiếm Class trên tài khoản Modal Cloud dựa vào các thông tin:
+        # "wav2vec2-gpu-service": Tên của Modal App bạn đã deploy (được khai báo tại app = modal.App("wav2vec2-gpu-service") trong file wav2vec2_gpu_modal.py).
+        # "Wav2Vec2Transcriber": Tên Class chứa các hàm xử lý GPU trong Modal App.
+        # environment_name=env_name: Môi trường của Modal cần tìm kiếm (ví dụ: development hay production).
+        transcriber = modal.Cls.from_name(
+            "wav2vec2-gpu-service", 
+            "Wav2Vec2Transcriber", 
+            environment_name=env_name
+        )()
 
-        # 2. Tạo file tạm thời
-        with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as temp_file:
-            for chunk in response.iter_content(chunk_size=8192):
-                if chunk:
-                    temp_file.write(chunk)
-            temp_file_path = temp_file.name
+        #  transcriber.transcribe: Gọi hàm transcribe nằm trong class trên.
+        # .remote: Chỉ định rằng hàm này sẽ được chạy trên Modal Cloud với thiết lập GPU đã cấu hình.
+        phonemes = transcriber.transcribe.remote(audio_url=path)
 
-        # 3. Đọc và chuẩn hóa tần số lấy mẫu về 16kHz
-        speech, sr = librosa.load(temp_file_path, sr=16000)
-
-        # Xóa file tạm ngay sau khi load xong để giải phóng bộ nhớ đĩa
-        try:
-            os.remove(temp_file_path)
-        except Exception as e:
-            print(f"Không thể xóa file tạm: {e}")
-
-        # Kiểm tra xem mô hình đã được load thành công qua Lifespan chưa
-        if speech_model.processor is None or speech_model.model is None:
-            raise Exception("Mô hình chưa được nạp vào hệ thống!")
-
-        # 4. Tiền xử lý dữ liệu và đẩy lên thiết bị (CPU/GPU)
-        input_values = speech_model.processor(
-            speech, sampling_rate=16000, return_tensors="pt"
-        ).input_values.to(speech_model.device)
-
-        # 5. Thực hiện nhận diện (Inference) không tính gradient
-        with torch.no_grad():
-            logits = speech_model.model(input_values).logits
-
-        predicted_ids = torch.argmax(logits, dim=-1)
-        phonemes = speech_model.processor.batch_decode(predicted_ids)[0]
-
-        # 6. Gửi kết quả ngược lại cho hệ thống .NET qua Webhook
+        # 2. Gửi kết quả ngược lại cho hệ thống .NET qua Webhook
         headers = {
             "Content-Type": "application/json",
             "X-Python-Secret": settings.WEB_HOOK_DOT_NET
@@ -64,7 +38,8 @@ def process_wav2vec2_task(request: ConvertAudioPhoneticRequest):
         }
 
         print(f"[{callback_payload}] Đang gửi webhook kết quả về .NET...")
-        requests.post(request.callback_url, json=callback_payload, headers=headers, verify=False)
+        requests.post(request.callback_url, json=callback_payload, headers=headers, verify=False, timeout=20)
 
     except Exception as e:
-        print(f"[{request.recording_id}] Lỗi trong quá trình xử lý ngầm: {str(e)}")
+        print(f"[{request.recording_id}] Lỗi trong quá trình xử lý trên Modal: {str(e)}")
+

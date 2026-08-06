@@ -16,7 +16,7 @@ class Settings(BaseSettings):
 
     # Các biến cấu hình lấy từ file .env
     WEB_HOOK_DOT_NET: str
-    MODEL_WAV2_VEC2: str
+    MODAL_ENVIRONMENT: str | None = None
 
     # Ánh xạ giá trị 'NLTK' từ tệp .env vào biến 'MODEL_NLTK'
     MODEL_NLTK: str = Field(validation_alias="NLTK")
